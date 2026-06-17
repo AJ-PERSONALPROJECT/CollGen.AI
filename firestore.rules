@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Definition
+    function isValidId(id) { 
+        return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    // Enforcing email_verified as per strict guidelines
+    function isSignedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    // Validation Blueprints
+    function isValidUser(data, uid) {
+      return data.userId == uid &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.role in ['student', 'parent', 'faculty', 'other', 'guest'] &&
+             data.createdAt == request.time &&
+             data.updatedAt == request.time &&
+             data.keys().hasAll(['userId', 'role', 'createdAt', 'updatedAt']) &&
+             data.keys().size() <= 6; // allows optional email and displayName
+    }
+
+    function isValidUserUpdate(data, existingData, uid) {
+       return data.userId == uid &&
+              data.userId == existingData.userId &&
+              data.createdAt == existingData.createdAt &&
+              data.updatedAt == request.time &&
+              data.role in ['student', 'parent', 'faculty', 'other', 'guest'];
+    }
+
+    function isValidPreferences(data) {
+       return data.updatedAt == request.time &&
+              data.keys().hasAll(['updatedAt']) &&
+              data.keys().size() <= 5;
+    }
+
+    function isValidPreferencesUpdate(data, existingData) {
+       return data.updatedAt == request.time;
+    }
+
+    function isValidChatHistory(data) {
+       return data.role in ['user', 'assistant'] &&
+              data.content is string && data.content.size() <= 50000 &&
+              data.timestamp == request.time &&
+              data.keys().hasAll(['role', 'content', 'timestamp']) &&
+              data.keys().size() <= 4 &&
+              (!('feedback' in data) || data.feedback in ['upvote', 'downvote', 'none']);
+    }
+
+    function isValidChatHistoryUpdate(data, existingData) {
+       return data.role == existingData.role &&
+              data.content == existingData.content &&
+              data.timestamp == existingData.timestamp &&
+              (!('feedback' in data) || data.feedback in ['upvote', 'downvote', 'none']);
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming(), userId) &&
+                    (!('email' in incoming()) || (incoming().email is string && incoming().email.size() <= 200)) &&
+                    (!('displayName' in incoming()) || (incoming().displayName is string && incoming().displayName.size() <= 100));
+
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserUpdate(incoming(), existing(), userId) &&
+                    (
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt']) ||
+                       incoming().diff(existing()).affectedKeys().hasOnly(['role', 'updatedAt']) ||
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'role', 'updatedAt'])
+                    ) &&
+                    (!('email' in incoming()) || (incoming().email is string && incoming().email.size() <= 200)) &&
+                    (!('displayName' in incoming()) || (incoming().displayName is string && incoming().displayName.size() <= 100));
+      
+      match /preferences/{preferenceId} {
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(preferenceId) && isValidPreferences(incoming()) && exists(/databases/$(database)/documents/users/$(userId)) &&
+                      (!('preferredCourses' in incoming()) || (incoming().preferredCourses is list && incoming().preferredCourses.size() <= 50)) &&
+                      (!('targetLocations' in incoming()) || (incoming().targetLocations is list && incoming().targetLocations.size() <= 50)) &&
+                      (!('language' in incoming()) || (incoming().language is string && incoming().language.size() <= 20)) &&
+                      (!('theme' in incoming()) || (incoming().theme is string && incoming().theme.size() <= 20));
+                      
+        allow update: if isOwner(userId) && isValidId(preferenceId) && isValidPreferencesUpdate(incoming(), existing()) && exists(/databases/$(database)/documents/users/$(userId)) &&
+                      (incoming().diff(existing()).affectedKeys().hasOnly(['preferredCourses', 'targetLocations', 'language', 'theme', 'updatedAt']) ||
+                       incoming().diff(existing()).affectedKeys().hasOnly(['language', 'theme', 'updatedAt']) ||
+                       incoming().diff(existing()).affectedKeys().hasOnly(['language', 'updatedAt']) ||
+                       incoming().diff(existing()).affectedKeys().hasOnly(['theme', 'updatedAt'])) &&
+                      (!('preferredCourses' in incoming()) || (incoming().preferredCourses is list && incoming().preferredCourses.size() <= 50)) &&
+                      (!('targetLocations' in incoming()) || (incoming().targetLocations is list && incoming().targetLocations.size() <= 50)) &&
+                      (!('language' in incoming()) || (incoming().language is string && incoming().language.size() <= 20)) &&
+                      (!('theme' in incoming()) || (incoming().theme is string && incoming().theme.size() <= 20));
+      }
+
+      match /history/{messageId} {
+        allow list, get: if isOwner(userId) && existing().role in ['user', 'assistant'];
+        allow create: if isOwner(userId) && isValidId(messageId) && isValidChatHistory(incoming()) && exists(/databases/$(database)/documents/users/$(userId));
+        allow update: if isOwner(userId) && isValidId(messageId) && isValidChatHistoryUpdate(incoming(), existing()) && exists(/databases/$(database)/documents/users/$(userId)) &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['feedback']);
+      }
+    }
+  }
+}

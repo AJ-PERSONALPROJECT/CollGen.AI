@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a registered user in the application.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The unique identifier of the user (Firebase Auth UID)."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "parent", "faculty", "other", "guest"],
+          "description": "The user's role."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user profile was last updated."
+        }
+      },
+      "required": ["userId", "role", "createdAt", "updatedAt"]
+    },
+    "UserPreferences": {
+       "title": "User Preferences",
+       "description": "Represents a user's preferences for college search.",
+       "type": "object",
+       "properties": {
+          "preferredCourses": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of courses the user is interested in."
+          },
+          "targetLocations": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of locations the user is interested in."
+          },
+          "language": {
+             "type": "string",
+             "description": "User's preferred language for AI responses."
+          },
+          "theme": {
+             "type": "string",
+             "description": "User's preferred UI theme."
+          },
+          "updatedAt": {
+             "type": "string",
+             "format": "date-time"
+          }
+       },
+       "required": ["updatedAt"]
+    },
+    "ChatHistory": {
+      "title": "Chat History",
+      "description": "A single chat message in the user's history.",
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["user", "assistant"]
+        },
+        "content": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "feedback": {
+          "type": "string",
+          "enum": ["upvote", "downvote", "none"]
+        }
+      },
+      "required": ["role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores core user profile data."
+    },
+    "/users/{userId}/preferences/{preferenceId}": {
+      "schema": { "$ref": "#/entities/UserPreferences" },
+      "description": "Stores user preferences. Usually preferenceId is 'default'."
+    },
+    "/users/{userId}/history/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatHistory" },
+      "description": "Stores the chat message history for the user."
+    }
+  }
+}

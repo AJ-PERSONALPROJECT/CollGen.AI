@@ -1,0 +1,10 @@
+{
+  "name": "College Voice Assistant",
+  "description": "A Chatbot Enquiry System for colleges that helps students with courses, fees, and admissions using voice or text, inspired by the submitted research paper.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
