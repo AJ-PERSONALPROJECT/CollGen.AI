@@ -1,6 +1,6 @@
-# CollGen.AI
+# CollGen.AI / CollIGen
 
-A voice-enabled college enquiry assistant.
+A voice-enabled college information generar enquiry assistant .
 
 CollGen.AI helps students, parents, and guests explore college options, compare institutions, and ask admission-related questions using text or microphone input.
 
