@@ -2,7 +2,7 @@
 
 A voice-enabled college information generar enquiry assistant .
 
-CollGen.AI helps students, parents, and guests explore college options, compare institutions, and ask admission-related questions using text or microphone input.
+CollGen.AI(Coll-I-Gen) helps students, parents, and guests explore college options, compare institutions, and ask admission-related questions using text or microphone input.
 
 ## Why this project is useful
 
